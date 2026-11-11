@@ -492,13 +492,21 @@ function seatLine(booking, i) {
 }
 
 function receiptText(booking) {
-  const lines = [`FlightScout booking ${booking.reference}`, ""];
-  bookingFlights(booking).forEach((f) => {
+  const lines = [`FlightScout booking ${booking.reference}`, "(Beta: sample fares and a PayPal sandbox payment. Not a real airline ticket.)", ""];
+  bookingFlights(booking).forEach((f, i) => {
     lines.push(`${f.airline} ${f.flightNumber || ""}: ${placeName(f.origin)} to ${placeName(f.destination)}`);
     lines.push(`${formatDate(f.departure)}, departs ${formatTime(f.departure)}, arrives ${formatTime(f.arrival)}`);
-    lines.push(`Be at the airport by ${clock(f.departure, 120)}.`);
+    const seats = seatLine(booking, i);
+    if (seats) lines.push(seats);
+    lines.push(`Be at the airport by ${clock(f.departure, 120)}. Check-in desk closes about ${clock(f.departure, 45)}.`, "");
   });
-  lines.push("", `Passengers: ${booking.passengers.join(", ")}`, `Paid: US$${booking.paid.usd.toFixed(2)} via PayPal`);
+  const x = booking.extras || {};
+  const extra = [];
+  if (x.bags) extra.push(`${x.bags} extra bag${x.bags > 1 ? "s" : ""} per passenger, per flight`);
+  (x.assistance || []).forEach((a) => extra.push(a));
+  lines.push(`Passengers: ${booking.passengers.join(", ")}`);
+  if (extra.length) lines.push(`Extras: ${extra.join("; ")}`);
+  lines.push(`Paid: US$${booking.paid.usd.toFixed(2)} (about ${formatPrice(booking.paid.ngn, "NGN")}) via PayPal`);
   return lines.join("\n");
 }
 
@@ -516,6 +524,7 @@ function drawBooking(box, msg) {
 
   // 1. The ticket: the reference and the flights, nothing else.
   const card = el("div", "ticket-card");
+  const panel = el("div", "");
   card.append(el("div", "eyebrow", "BOOKING CONFIRMED"), el("div", "ref", booking.reference));
   flights.forEach((f, i) => {
     const leg = el("div", "tleg");
@@ -524,6 +533,12 @@ function drawBooking(box, msg) {
     leg.append(route, el("div", "tw", `${formatDate(f.departure)} · ${formatTime(f.departure)} → ${formatTime(f.arrival)}${f.flightNumber ? ` · ${f.flightNumber}` : ""}`));
     const seats = seatLine(booking, i);
     if (seats) leg.append(el("div", "ts", seats));
+    else {
+      const pick = el("button", "link-btn", flights.length > 1 ? "Choose seats for this flight" : "Choose your seat");
+      pick.type = "button";
+      pick.addEventListener("click", () => { panel.hidden = false; openSeatPanel(panel, booking, msg, box, i); });
+      leg.append(pick);
+    }
     card.append(leg);
   });
   const extraBits = [];
@@ -540,12 +555,11 @@ function drawBooking(box, msg) {
   ticket.target = "_blank"; ticket.rel = "noopener";
   ticket.setAttribute("role", "button");
   const mailBtn = el("button", "ghost", "Email me this receipt");
-  const seatBtn = el("button", "ghost", flights.some((_, i) => seatLine(booking, i)) ? "Change seats" : "Choose seats");
+  const seatBtn = el("button", "ghost", flights.some((_, i) => seatLine(booking, i)) ? "Change seats" : flights.length > 1 ? `Choose seats (${flights.length} flights)` : "Choose seats");
   mailBtn.type = seatBtn.type = "button";
   actions.append(ticket, mailBtn, seatBtn);
   card.append(actions);
 
-  const panel = el("div", "");
   card.append(panel);
   mailBtn.addEventListener("click", () => { panel.hidden = false; openReceiptPanel(panel, booking); });
   seatBtn.addEventListener("click", () => { panel.hidden = false; openSeatPanel(panel, booking, msg, box); });
@@ -619,7 +633,7 @@ function openReceiptPanel(panel, booking) {
   input.focus();
 }
 
-async function openSeatPanel(panel, booking, msg, box) {
+async function openSeatPanel(panel, booking, msg, box, startFlight = 0) {
   panel.className = "inline-panel";
   panel.replaceChildren(el("p", "hint", "Loading the seat map..."));
   let data;
@@ -633,7 +647,7 @@ async function openSeatPanel(panel, booking, msg, box) {
   }
   let current = data.booking;
   const flights = bookingFlights(current);
-  let flightIdx = 0;
+  let flightIdx = startFlight;
   let pax = 0;
   const info = data.seatMap;
   const draw = () => {
@@ -641,7 +655,10 @@ async function openSeatPanel(panel, booking, msg, box) {
     panel.append(el("div", "suggest-title", "Pick your seats (included, no extra charge)"));
     if (flights.length > 1) {
       const tabs = el("div", "seat-tabs");
-      flights.forEach((f, i) => { const b = el("button", i === flightIdx ? "on" : "", `${f.origin} → ${f.destination}`); b.type = "button"; b.addEventListener("click", () => { flightIdx = i; draw(); }); tabs.append(b); });
+      flights.forEach((f, i) => {
+        const have = Object.keys((current.seats || {})[i] || {}).length;
+        const done = have >= current.passengers.length;
+        const b = el("button", i === flightIdx ? "on" : "", `${done ? "✓ " : ""}Flight ${i + 1}: ${f.origin} → ${f.destination}`); b.type = "button"; b.addEventListener("click", () => { flightIdx = i; draw(); }); tabs.append(b); });
       panel.append(tabs);
     }
     if (current.passengers.length > 1) {
@@ -669,7 +686,7 @@ async function openSeatPanel(panel, booking, msg, box) {
       });
       map.append(row);
     }
-    const hint = el("p", "hint", `Choosing a seat for ${current.passengers[pax]} on ${flights[flightIdx].origin} → ${flights[flightIdx].destination}. Greyed seats are taken.`);
+    const hint = el("p", "hint", `Choosing a seat for ${current.passengers[pax]} on ${flights[flightIdx].origin} → ${flights[flightIdx].destination}. Greyed seats are taken.${flights.length > 1 ? " Use the tabs above to pick seats on your other flights too." : ""}`);
     const done = el("button", "primary", "Done");
     done.type = "button";
     done.addEventListener("click", () => drawBooking(box, msg)); // redraw the ticket with the seats
