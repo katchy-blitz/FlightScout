@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: flightscout
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_MODE
+        value: "true"
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: NGN_PER_USD
+        value: "1500"
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DUFFEL_ACCESS_TOKEN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: OPENAI_API_URL
+        value: https://api.groq.com/openai
+      - key: OPENAI_MODEL
+        value: openai/gpt-oss-120b
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: SHOW_CODE_ON_SCREEN
+        value: "true"
+      - key: GAS_MAIL_URL
+        sync: false
+      - key: GAS_MAIL_SECRET
+        sync: false
