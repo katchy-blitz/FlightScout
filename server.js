@@ -161,6 +161,13 @@ function noDirectReply(ctx) {
   return text;
 }
 
+// "15:45" -> "3:45 pm", the same way the flight cards show times
+function clock12(local) {
+  const [h, m] = String(local).slice(11, 16).split(":").map(Number);
+  if (Number.isNaN(h)) return "";
+  return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
+}
+
 function summarise(result, ctx) {
   const { flights, budget } = result;
   if (!flights.length) {
@@ -173,12 +180,12 @@ function summarise(result, ctx) {
 
   if (budget && budget.overBudget) {
     const gap = best.priceNGN != null ? best.priceNGN - budget.maxPriceNGN : null;
-    return `Nothing is under ${formatNGN(budget.maxPriceNGN)} on ${dayLabel(ctx.departureDate)}. The cheapest is ${best.airline} at ${best.departure.slice(11, 16)} for ${cost}${gap > 0 ? `, which is ${formatNGN(gap)} over your budget` : ""}. I'm showing the cheapest options so you can still decide.`;
+    return `Nothing is under ${formatNGN(budget.maxPriceNGN)} on ${dayLabel(ctx.departureDate)}. The cheapest is ${best.airline} at ${clock12(best.departure)} for ${cost}${gap > 0 ? `, which is ${formatNGN(gap)} over your budget` : ""}. I'm showing the cheapest options so you can still decide.`;
   }
 
   const top = flights[0];
   const topCost = top.priceNGN != null ? formatNGN(top.priceNGN) : `${top.price} ${top.currency}`;
-  let text = `Here ${flights.length > 1 ? `are the top ${flights.length} options` : "is the best option"} for ${dayLabel(ctx.departureDate)}. Top pick: ${top.airline} at ${top.departure.slice(11, 16)} for ${topCost}`;
+  let text = `Here ${flights.length > 1 ? `are the top ${flights.length} options` : "is the best option"} for ${dayLabel(ctx.departureDate)}. Top pick: ${top.airline} at ${clock12(top.departure)} for ${topCost}`;
   if (top.matchesPreference) text += `, which fits your ${ctx.timePreference} preference`;
   text += ".";
   if (budget) text += ` Everything shown is within your ${formatNGN(budget.maxPriceNGN)} budget.`;

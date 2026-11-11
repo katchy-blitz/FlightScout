@@ -38,7 +38,7 @@ function el(tag, className, text) {
   return node;
 }
 
-const formatTime = (v) => (v ? new Date(v).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", hour12: true }) : "--:--");
+const formatTime = (v) => (v ? new Date(v).toLocaleTimeString("en-NG", { hour: "numeric", minute: "2-digit", hour12: true }) : "--:--");
 const formatDate = (v) => (v ? new Date(v).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" }) : "");
 const formatPrice = (amount, currency) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: currency || "NGN", maximumFractionDigits: currency === "NGN" || !currency ? 0 : 2 }).format(amount);
@@ -283,6 +283,7 @@ function addTyping() {
 // The fresh-chat screen: a greeting and the message box in the middle, like Gemini or ChatGPT.
 function updateHero() {
   const empty = state.messages.length === 0;
+  input.placeholder = empty ? "Tell Scout where you want to fly..." : "Ask a follow-up, or say \"make it evening\"...";
   document.querySelector(".main").classList.toggle("is-empty", empty);
   const who = state.user && (state.user.callMe || state.user.name);
   document.getElementById("heroTitle").textContent = who ? `Hello ${who}, where are we flying?` : "Where would you like to fly?";
@@ -301,6 +302,7 @@ function pushMessage(msg) {
   state.messages.push(msg);
   const row = renderMessage(msg);
   document.querySelector(".main").classList.remove("is-empty");
+  input.placeholder = "Ask a follow-up, or say \"make it evening\"...";
   starters.hidden = true;
   toBottom();
   return row;
@@ -376,7 +378,7 @@ function renderSuggestions(body, suggestions) {
       ? `${s.label}: ${formatPrice(s.flight.priceNGN, "NGN")}, within your budget`
       : `${s.label}: ${formatPrice(s.saving, "NGN")} cheaper`;
     const sub = el("div", "suggest-sub");
-    sub.append(airlineLine(s.flight.airline, "airline-inline"), ` at ${s.flight.departure.slice(11, 16)} for ${formatPrice(s.flight.priceNGN, "NGN")}`);
+    sub.append(airlineLine(s.flight.airline, "airline-inline"), ` at ${formatTime(s.flight.departure)} for ${formatPrice(s.flight.priceNGN, "NGN")}`);
     info.append(el("div", "suggest-main", main), sub);
     const go = el("button", "ghost", "Show these flights");
     go.type = "button";
